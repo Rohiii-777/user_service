@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 
 from app.core.config import get_settings
 from jose import JWTError
-
+import uuid
 settings = get_settings()
 
 pwd_context = CryptContext(
@@ -33,6 +33,7 @@ def _create_token(
         "type": token_type,
         "iat": now,
         "exp": now + expires_delta,
+        "jti": str(uuid.uuid4()),
     }
 
     return jwt.encode(

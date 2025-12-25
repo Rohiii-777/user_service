@@ -1,120 +1,212 @@
 # User Management Service (FastAPI)
 
-A **production-ready, reusable User Management backend service** built with **FastAPI**, **async SQLAlchemy**, and **PostgreSQL**.
+A **production-ready, reusable user management backend** built with **FastAPI**, **async SQLAlchemy**, **JWT authentication**, and **PostgreSQL**.
 
-Designed to be plugged into multiple projects to handle **authentication, authorization, user lifecycle, and admin controls** with clean architecture and Docker support.
-
----
-
-## ✨ Features
-
-### Authentication & Security
-- User registration
-- Login with email & password
-- JWT **access tokens**
-- JWT **refresh tokens**
-- Refresh token endpoint
-- Password hashing using **bcrypt**
-- Swagger UI **Authorize (Bearer token)** support
-
-### User Management
-- Get current user (`/users/me`)
-- Update profile (username)
-- Change password (with verification)
-- Soft deactivate users (`is_active` flag)
-
-### Admin Features
-- Admin-only user listing
-- Admin user deactivation
-- Authorization via dependency (`is_admin` flag)
-- RBAC-ready design
-
-### Architecture & Infra
-- Async SQLAlchemy 2.x
-- Alembic migrations
-- Clean layered architecture:
-  - API → Services → Repositories → DB
-- Domain-level errors (no HTTP logic in services)
-- Uniform API response structure
-- Dockerized API + PostgreSQL
-- Migrations auto-run on container startup
-- Windows / Linux / CI compatible
+Designed as a **standalone user service** that can be plugged into multiple applications with minimal changes.
 
 ---
 
-## 🗂 Project Structure
-app/
-├── api/
-│   ├── deps.py
-│   └── v1/
-│       ├── auth.py
-│       └── users.py
-│
-├── core/
-│   ├── config.py
-│   ├── logging.py
-│   └── security.py
-│
-├── db/
-│   ├── base.py
-│   ├── session.py
-│   └── migrations/
-│
-├── models/
-│   ├── base.py
-│   └── user.py
-│
-├── repositories/
-│   └── user_repository.py
-│
-├── services/
-│   ├── auth_service.py
-│   ├── user_service.py
-│   └── errors.py
-│
-├── schemas/
-│   ├── auth.py
-│   ├── user.py
-│   └── common.py
-│
-├── exceptions/
-│   └── handlers.py
-│
-├── main.py
-│
-entrypoint.sh
-Dockerfile
-docker-compose.yml
-alembic.ini
-pyproject.toml
-uv.lock
+## Why This Project Exists
 
+Most side projects either:
+
+* skip authentication entirely, or
+* implement it in a fragile, hard-to-maintain way.
+
+This service focuses on doing authentication **the right way**, with:
+
+* clean architecture
+* correct auth & authorization flows
+* real-world backend patterns
+* strong test coverage
+* reusability across projects
+
+The goal is not a demo — it’s a **baseline user service you can trust**.
 
 ---
 
-## 🔁 API Response Format
+## Architecture
 
-All endpoints return a uniform response:
+The project follows a **layered architecture** with strict separation of concerns.
 
-```json
-{
-  "success": true,
-  "data": {},
-  "error": null
-}
+### Layers
 
-{
-  "success": false,
-  "data": null,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human readable message"
-  }
-}
+* **API Layer**
+  FastAPI routes. Handles HTTP concerns only (requests, responses, status codes).
 
-🚀 Setup & Run (Docker Recommended)
-Prerequisites
+* **Service Layer**
+  Business logic, validation, orchestration.
 
-Docker Desktop
+* **Repository Layer**
+  Database access using async SQLAlchemy.
 
-Docker Compose
+* **Core**
+  Security (JWT, password hashing), configuration, shared utilities.
+
+* **DB**
+  Async SQLAlchemy models and Alembic migrations.
+
+### Design Principles
+
+* No database logic in routes
+* No HTTP logic in services
+* Stateless authentication
+* Explicit, testable boundaries between layers
+
+---
+
+## Authentication & Authorization
+
+### Authentication Flow
+
+1. User registers with email, username, and password
+2. Passwords are securely hashed
+3. Login returns:
+
+   * **Access token (JWT)** — short-lived
+   * **Refresh token (JWT)** — long-lived
+
+---
+
+### Access Tokens
+
+* Used for protected endpoints
+
+* Sent via header:
+
+  ```http
+  Authorization: Bearer <access_token>
+  ```
+
+* Short-lived by design
+
+* Contains a unique token ID (`jti`) to ensure proper rotation
+
+---
+
+### Refresh Tokens
+
+* Used **only** to obtain a new access token
+* Cannot access protected routes
+* Token type is explicitly enforced
+* Access token rotation is guaranteed
+
+---
+
+### Admin Authorization
+
+* Users have an `is_admin` flag
+* Admin-only endpoints are protected via dependencies
+* Non-admin access returns `403 Forbidden`
+
+---
+
+## API Overview
+
+### Authentication
+
+* `POST /api/v1/users` — Register
+* `POST /api/v1/auth/login` — Login
+* `POST /api/v1/auth/refresh` — Refresh access token
+
+### User
+
+* `GET /api/v1/users/me` — Get current user
+
+### Admin
+
+* `GET /api/v1/admin/users` — List users (admin only)
+
+### API Docs
+
+Swagger UI available at:
+
+```
+http://localhost:8000/docs
+```
+
+---
+
+## Running Locally
+
+### Requirements
+
+* Docker
+* Docker Compose
+
+### Start the Service
+
+```bash
+docker compose up --build
+```
+
+### Services
+
+* API → [http://localhost:8000](http://localhost:8000)
+* Swagger UI → [http://localhost:8000/docs](http://localhost:8000/docs)
+* PostgreSQL → internal Docker network
+
+Database migrations run automatically on container startup.
+
+---
+
+## Testing
+
+Tests are **async integration tests** using SQLite for speed and isolation.
+
+```bash
+pytest
+```
+
+### What’s Covered
+
+* User registration
+* Login & refresh token flow
+* Protected routes
+* Negative authentication cases
+* Admin RBAC
+
+Tests exercise the **real application stack**:
+
+```
+routes → services → repositories → database
+```
+
+---
+
+## Tech Stack
+
+* FastAPI
+* SQLAlchemy (async)
+* PostgreSQL
+* Alembic
+* JWT (access + refresh)
+* Argon2 (password hashing)
+* pytest + pytest-asyncio
+* Docker & Docker Compose
+
+---
+
+## Design Decisions
+
+* JWTs used instead of sessions for stateless authentication
+* Service & repository layers keep routes thin
+* SQLite used in tests for fast feedback
+* Admin modeled as a simple flag for clarity and extensibility
+
+---
+
+## Reuse
+
+This service can be reused by:
+
+* pointing multiple applications to the same user service, or
+* embedding it as a module inside a larger FastAPI system
+
+---
+
+## Status
+
+This project is **feature-complete** for a baseline user management service.
+
+Future enhancements (rate limiting, refresh token reuse detection, advanced RBAC, token revocation) can be added **without changing the core design**.
