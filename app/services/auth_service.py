@@ -7,7 +7,7 @@ from app.core.security import (
     create_refresh_token,
      decode_token,
        create_access_token,
-       hash_refresh_token
+       hash_refresh_token,hash_password
 )
 from app.repositories.user_repository import UserRepository
 from app.services.errors import InvalidCredentials, InactiveUser,UserNotFound,Unauthorized
@@ -135,3 +135,35 @@ class AuthService:
 
         await repo.create(token_record)
         return raw_token
+
+    async def reset_password(self, reset_token: str, new_password: str) -> None:
+        token_hash = hash_refresh_token(reset_token)
+        reset_repo = PasswordResetTokenRepository(self.session)
+
+        token_record = await reset_repo.get_by_hash(token_hash)
+
+        if not token_record:
+            raise Unauthorized("Invalid reset token")
+
+        if token_record.used:
+            raise Unauthorized("Reset token already used")
+
+        if token_record.expires_at < datetime.utcnow():
+            raise Unauthorized("Reset token expired")
+
+        # load user
+        user = await self.repo.get_by_id(token_record.user_id)
+        if not user:
+            raise Unauthorized("Invalid reset token")
+
+        # update password
+        user.hashed_password = hash_password(new_password)
+
+        # invalidate all refresh tokens
+        refresh_repo = RefreshTokenRepository(self.session)
+        await refresh_repo.revoke_all_for_user(user.id)
+
+        # mark reset token used
+        token_record.used = True
+
+        await self.session.commit()

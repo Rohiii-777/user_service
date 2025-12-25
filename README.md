@@ -1,212 +1,127 @@
-# User Management Service (FastAPI)
+# User Management Service
 
-A **production-ready, reusable user management backend** built with **FastAPI**, **async SQLAlchemy**, **JWT authentication**, and **PostgreSQL**.
+Production-ready FastAPI-based user management and authentication service designed for reuse across multiple backend projects.
 
-Designed as a **standalone user service** that can be plugged into multiple applications with minimal changes.
+## Features
+## Architecture
+## Authentication Flows
+## API Overview
+## Tech Stack
+## Running Locally
+## Running Tests
+## Design Decisions
+## Future Improvements
 
----
+# User Management Service
+This repository contains a reusable user management and authentication service built with FastAPI.
 
-## Why This Project Exists
+It is designed as a standalone backend service that can be plugged into multiple projects requiring authentication, authorization, and user lifecycle management.
 
-Most side projects either:
+## Features
 
-* skip authentication entirely, or
-* implement it in a fragile, hard-to-maintain way.
-
-This service focuses on doing authentication **the right way**, with:
-
-* clean architecture
-* correct auth & authorization flows
-* real-world backend patterns
-* strong test coverage
-* reusability across projects
-
-The goal is not a demo — it’s a **baseline user service you can trust**.
-
----
+- User registration and login
+- JWT-based authentication (access + refresh tokens)
+- Stateful refresh token handling
+- Secure logout with token revocation
+- Password reset (forgot/reset flow with one-time tokens)
+- Role-based access control (admin vs user)
+- Async SQLAlchemy with Alembic migrations
+- Dockerized development setup
+- Integration tests with pytest
+- CI via GitHub Actions
 
 ## Architecture
 
-The project follows a **layered architecture** with strict separation of concerns.
+The service follows a layered architecture:
 
-### Layers
+- **API layer**: FastAPI routers (request/response handling)
+- **Service layer**: Business logic and orchestration
+- **Repository layer**: Database access and persistence
+- **Models**: SQLAlchemy ORM models
+- **Schemas**: Pydantic request/response models
 
-* **API Layer**
-  FastAPI routes. Handles HTTP concerns only (requests, responses, status codes).
+Each layer has a single responsibility, making the system easy to test and extend.
 
-* **Service Layer**
-  Business logic, validation, orchestration.
+## Authentication Flows
 
-* **Repository Layer**
-  Database access using async SQLAlchemy.
+### Login
+1. User submits credentials
+2. Server issues access + refresh tokens
+3. Refresh token is hashed and persisted in the database
 
-* **Core**
-  Security (JWT, password hashing), configuration, shared utilities.
+### Refresh Token
+1. Client sends refresh token
+2. Token is validated against the database
+3. New access token is issued
 
-* **DB**
-  Async SQLAlchemy models and Alembic migrations.
+### Logout
+1. Client sends refresh token
+2. Token is revoked in the database
+3. Further refresh attempts fail
 
-### Design Principles
-
-* No database logic in routes
-* No HTTP logic in services
-* Stateless authentication
-* Explicit, testable boundaries between layers
-
----
-
-## Authentication & Authorization
-
-### Authentication Flow
-
-1. User registers with email, username, and password
-2. Passwords are securely hashed
-3. Login returns:
-
-   * **Access token (JWT)** — short-lived
-   * **Refresh token (JWT)** — long-lived
-
----
-
-### Access Tokens
-
-* Used for protected endpoints
-
-* Sent via header:
-
-  ```http
-  Authorization: Bearer <access_token>
-  ```
-
-* Short-lived by design
-
-* Contains a unique token ID (`jti`) to ensure proper rotation
-
----
-
-### Refresh Tokens
-
-* Used **only** to obtain a new access token
-* Cannot access protected routes
-* Token type is explicitly enforced
-* Access token rotation is guaranteed
-
----
-
-### Admin Authorization
-
-* Users have an `is_admin` flag
-* Admin-only endpoints are protected via dependencies
-* Non-admin access returns `403 Forbidden`
-
----
+### Password Reset
+1. User requests password reset
+2. One-time reset token is generated and stored (hashed)
+3. User resets password using token
+4. All active sessions are invalidated
 
 ## API Overview
 
-### Authentication
-
-* `POST /api/v1/users` — Register
-* `POST /api/v1/auth/login` — Login
-* `POST /api/v1/auth/refresh` — Refresh access token
-
-### User
-
-* `GET /api/v1/users/me` — Get current user
-
-### Admin
-
-* `GET /api/v1/admin/users` — List users (admin only)
-
-### API Docs
-
-Swagger UI available at:
-
-```
-http://localhost:8000/docs
-```
-
----
-
-## Running Locally
-
-### Requirements
-
-* Docker
-* Docker Compose
-
-### Start the Service
-
-```bash
-docker compose up --build
-```
-
-### Services
-
-* API → [http://localhost:8000](http://localhost:8000)
-* Swagger UI → [http://localhost:8000/docs](http://localhost:8000/docs)
-* PostgreSQL → internal Docker network
-
-Database migrations run automatically on container startup.
-
----
-
-## Testing
-
-Tests are **async integration tests** using SQLite for speed and isolation.
-
-```bash
-pytest
-```
-
-### What’s Covered
-
-* User registration
-* Login & refresh token flow
-* Protected routes
-* Negative authentication cases
-* Admin RBAC
-
-Tests exercise the **real application stack**:
-
-```
-routes → services → repositories → database
-```
-
----
+- POST /users — register user
+- POST /auth/login — login
+- POST /auth/refresh — refresh access token
+- POST /auth/logout — logout
+- POST /auth/forgot-password — initiate password reset
+- POST /auth/reset-password — reset password
+- GET /users/me — current user
+- GET /admin/users — admin-only user listing
 
 ## Tech Stack
 
-* FastAPI
-* SQLAlchemy (async)
-* PostgreSQL
-* Alembic
-* JWT (access + refresh)
-* Argon2 (password hashing)
-* pytest + pytest-asyncio
-* Docker & Docker Compose
+- Python 3.12
+- FastAPI
+- SQLAlchemy (async)
+- Alembic
+- PostgreSQL
+- JWT
+- pytest
+- Docker & Docker Compose
+- GitHub Actions
+
+## Running Locally
+docker compose up --build
+
+## API will be available at:
+http://localhost:8000/docs
+
+## Running Tests
+pytest -q
+
+# Tests include integration coverage for:
+
+- authentication
+
+- authorization
+
+- password reset
+
+- admin access
+
 
 ---
 
 ## Design Decisions
 
-* JWTs used instead of sessions for stateless authentication
-* Service & repository layers keep routes thin
-* SQLite used in tests for fast feedback
-* Admin modeled as a simple flag for clarity and extensibility
+- Refresh tokens are stored hashed for security
+- Logout revokes refresh tokens instead of blacklisting access tokens
+- Password reset tokens are one-time use and expire
+- Services own database sessions to manage transactions
+- Tests use real API calls instead of mocking internals
 
----
+## Future Improvements
 
-## Reuse
-
-This service can be reused by:
-
-* pointing multiple applications to the same user service, or
-* embedding it as a module inside a larger FastAPI system
-
----
-
-## Status
-
-This project is **feature-complete** for a baseline user management service.
-
-Future enhancements (rate limiting, refresh token reuse detection, advanced RBAC, token revocation) can be added **without changing the core design**.
+- Email delivery for password reset and verification
+- Refresh token rotation
+- Rate limiting on auth endpoints
+- Account lockout on repeated failed logins
+- OAuth provider support

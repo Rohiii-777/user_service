@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.refresh_token import RefreshToken
@@ -21,4 +21,13 @@ class RefreshTokenRepository:
 
     async def revoke(self, token: RefreshToken) -> None:
         token.is_revoked = True
+        await self.session.commit()
+
+    async def revoke_all_for_user(self, user_id: str) -> None:
+        stmt = (
+            update(RefreshToken)
+            .where(RefreshToken.user_id == user_id)
+            .values(is_revoked=True)
+        )
+        await self.session.execute(stmt)
         await self.session.commit()

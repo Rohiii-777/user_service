@@ -120,3 +120,66 @@ async def test_forgot_password_unknown_email_still_succeeds(client):
 
     assert response.status_code == 200
     assert response.json()["success"] is True
+
+@pytest.mark.asyncio
+async def test_reset_password_success(client, create_user):
+    payload, _ = await create_user()
+
+    # forgot password
+    forgot = await client.post(
+        "/api/v1/auth/forgot-password",
+        json={"email": payload["email"]},
+    )
+    reset_token = forgot.json()["data"]["reset_token"]
+
+    # reset password
+    response = await client.post(
+        "/api/v1/auth/reset-password",
+        json={
+            "reset_token": reset_token,
+            "new_password": "newstrongpassword123",
+        },
+    )
+
+    assert response.status_code == 200
+
+    # login with new password
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": payload["email"],
+            "password": "newstrongpassword123",
+        },
+    )
+
+    assert login.status_code == 200
+
+@pytest.mark.asyncio
+async def test_reset_password_token_cannot_be_reused(client, create_user):
+    payload, _ = await create_user()
+
+    forgot = await client.post(
+        "/api/v1/auth/forgot-password",
+        json={"email": payload["email"]},
+    )
+    reset_token = forgot.json()["data"]["reset_token"]
+
+    # first reset
+    await client.post(
+        "/api/v1/auth/reset-password",
+        json={
+            "reset_token": reset_token,
+            "new_password": "newstrongpassword123",
+        },
+    )
+
+    # reuse token
+    second = await client.post(
+        "/api/v1/auth/reset-password",
+        json={
+            "reset_token": reset_token,
+            "new_password": "anotherpassword123",
+        },
+    )
+
+    assert second.status_code == 401
