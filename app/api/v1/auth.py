@@ -1,11 +1,16 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import db_session_dep
-from app.schemas.auth import LoginRequest, TokenResponse,RefreshTokenRequest
+from app.schemas.auth import LoginRequest, TokenResponse,RefreshTokenRequest,LogoutRequest,ForgotPasswordRequest,ForgotPasswordResponse
 from app.schemas.common import ResponseSchema
 from app.services.auth_service import AuthService
-
+from app.services.errors import (
+    InvalidCredentials,
+    Unauthorized,
+    InactiveUser,
+    UserNotFound,
+)
 router = APIRouter(tags=["auth"])
 
 
@@ -32,10 +37,56 @@ async def refresh_token(
     session: AsyncSession = Depends(db_session_dep),
 ):
     service = AuthService(session)
-    token_data = await service.refresh_access_token(payload.refresh_token)
+    try:
+        token_data = await service.refresh_access_token(payload.refresh_token)
+        return ResponseSchema(
+            success=True,
+            data=token_data,
+            error=None,
+        )
+
+    except Unauthorized as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": e.code, "message": e.message},
+        )
+
+@router.post(
+    "/auth/logout",
+    response_model=ResponseSchema[None],
+)
+async def logout(
+    payload: LogoutRequest,
+    session: AsyncSession = Depends(db_session_dep),
+):
+    service = AuthService(session)
+    try:
+        await service.logout(payload.refresh_token)
+        return ResponseSchema(
+            success=True,
+            data=None,
+            error=None,
+        )
+
+    except Unauthorized as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": e.code, "message": e.message},
+        )
+
+@router.post(
+    "/auth/forgot-password",
+    response_model=ResponseSchema[ForgotPasswordResponse],
+)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    session: AsyncSession = Depends(db_session_dep),
+):
+    service = AuthService(session)
+    token = await service.forgot_password(payload.email)
 
     return ResponseSchema(
         success=True,
-        data=token_data,
+        data=ForgotPasswordResponse(reset_token=token),
         error=None,
     )

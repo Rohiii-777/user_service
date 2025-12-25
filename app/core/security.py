@@ -7,6 +7,7 @@ from passlib.context import CryptContext
 from app.core.config import get_settings
 from jose import JWTError
 import uuid
+import hashlib
 settings = get_settings()
 
 pwd_context = CryptContext(
@@ -86,3 +87,6 @@ def decode_token(token: str, expected_type: str) -> str:
         raise TokenPayloadError("Invalid token subject")
 
     return user_id
+
+def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()

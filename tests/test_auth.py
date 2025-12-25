@@ -69,3 +69,54 @@ async def test_refresh_token_cannot_access_protected_route(client, create_user):
     )
 
     assert response.status_code == 401
+
+@pytest.mark.asyncio
+async def test_logout_revokes_refresh_token(client, create_user):
+    payload, _ = await create_user()
+
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": payload["email"],
+            "password": payload["password"],
+        },
+    )
+
+    refresh_token = login.json()["data"]["refresh_token"]
+
+    # logout
+    logout = await client.post(
+        "/api/v1/auth/logout",
+        json={"refresh_token": refresh_token},
+    )
+    assert logout.status_code == 200
+
+    # refresh should now fail
+    refresh = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert refresh.status_code == 401
+
+@pytest.mark.asyncio
+async def test_forgot_password_returns_reset_token(client, create_user):
+    payload, _ = await create_user()
+
+    response = await client.post(
+        "/api/v1/auth/forgot-password",
+        json={"email": payload["email"]},
+    )
+
+    assert response.status_code == 200
+    token = response.json()["data"]["reset_token"]
+    assert token is not None
+
+@pytest.mark.asyncio
+async def test_forgot_password_unknown_email_still_succeeds(client):
+    response = await client.post(
+        "/api/v1/auth/forgot-password",
+        json={"email": "doesnotexist@example.com"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True

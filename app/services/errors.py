@@ -18,6 +18,11 @@ class InvalidCredentials(ServiceError):
     message = "Invalid email or password"
 
 
+class Unauthorized(ServiceError):
+    code = "UNAUTHORIZED"
+    message = "Unauthorized"
+
+
 class UserNotFound(ServiceError):
     code = "USER_NOT_FOUND"
     message = "User not found"

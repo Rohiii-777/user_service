@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str
     access_token_expire_minutes: int
     refresh_token_expire_days: int
+    REFRESH_TOKEN_EXPIRE_SECONDS: int
+    PASSWORD_RESET_TOKEN_EXPIRE_SECONDS : int  # 15 minutes
 
     model_config = SettingsConfigDict(
         env_file=".env",
